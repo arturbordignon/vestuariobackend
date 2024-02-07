@@ -28,7 +28,7 @@ const userController = {
     try {
       const user = await User.findOne({ email: req.body.email });
 
-      if (!user._id || !bcrypt.compareSync(req.body.password, user.passwordHash)) {
+      if (!user._id || !bcrypt.compare(req.body.password, user.passwordHash)) {
         return res.status(400).json({ error: "Email ou senha inválidos" });
       }
 
