@@ -2,7 +2,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { errorResponse, successResponse } = require("../utils/responseHelpers");
-const nodemailer = require("nodemailer");
+require("dotenv").config();
+const Mailjet = require("node-mailjet");
+
+const mailjet = Mailjet.apiConnect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY);
 
 const userController = {
   register: async (req, res) => {
@@ -47,34 +50,34 @@ const userController = {
       }
 
       const resetToken = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
       const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USERNAME,
-          pass: process.env.EMAIL_PASSWORD,
-        },
+      const request = mailjet.post("send", { version: "v3.1" }).request({
+        Messages: [
+          {
+            From: {
+              Email: "3663628@alunouninter.com",
+              Name: "Vestuario",
+            },
+            To: [
+              {
+                Email: user.email,
+                Name: user.name,
+              },
+            ],
+            Subject: "Redefinir sua senha",
+            TextPart: "Clique no link a seguir para redefinir sua senha",
+            HTMLPart: `<p>Clique no link a seguir para redefinir sua senha:</p><p><a href="${resetLink}">${resetLink}</a></p>`,
+            CustomID: "AppGettingStartedTest",
+          },
+        ],
       });
 
-      const mailOptions = {
-        from: process.env.EMAIL_USERNAME,
-        to: user.email,
-        subject: "Redefinir sua senha",
-        html: `<p>Clique no link a seguir para redefinir sua senha:</p><p><a href="${resetLink}">${resetLink}</a></p>`,
-      };
+      await request;
 
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.log(error);
-          return res.status(500).send(errorResponse("Erro ao enviar email"));
-        } else {
-          console.log("Email enviado: " + info.response);
-          res.send(successResponse("Email enviado com sucesso"));
-        }
-      });
+      res.send(successResponse("Email enviado com sucesso"));
     } catch (error) {
+      console.error("Erro: ", error);
       res.status(500).send(errorResponse(error.message));
     }
   },

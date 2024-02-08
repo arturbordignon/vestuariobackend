@@ -3,10 +3,13 @@ const Clothing = require("../models/Clothing");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const { errorResponse, successResponse } = require("../utils/responseHelpers");
-const nodemailer = require("nodemailer");
+require("dotenv").config();
 const { extractPublicIdFromImageUrl } = require("../utils/cloudinaryUtils");
 const cloudinary = require("cloudinary").v2;
 const chatController = require("../controllers/chatController");
+const Mailjet = require("node-mailjet");
+
+const mailjet = Mailjet.apiConnect(process.env.MAILJET_API_KEY, process.env.MAILJET_SECRET_KEY);
 
 const adminController = {
   login: async (req, res) => {
@@ -33,39 +36,43 @@ const adminController = {
   forgotPassword: async (req, res) => {
     try {
       const admin = await Admin.findOne({ email: req.body.email });
-
       if (!admin) {
         return res.status(404).send(errorResponse("Email não encontrado"));
       }
 
       const resetToken = jwt.sign({ _id: admin._id }, process.env.JWT_SECRET, { expiresIn: "1h" });
-
       const resetLink = `${process.env.FRONTEND_URL}/admin/reset-password?token=${resetToken}`;
 
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USERNAME,
-          pass: process.env.EMAIL_PASSWORD,
-        },
+      const request = mailjet.post("send", { version: "v3.1" }).request({
+        Messages: [
+          {
+            From: {
+              Email: "teachassistsoftware@gmail.com",
+              Name: "Vestuario",
+            },
+            To: [
+              {
+                Email: admin.email,
+                Name: admin.name || "Admin",
+              },
+            ],
+            Subject: "Resetar Senha",
+            HTMLPart: `Clique no link a seguir ou cole-o em seu navegador para concluir o processo: <a href="${resetLink}">${resetLink}</a>`,
+          },
+        ],
       });
 
-      const mailOptions = {
-        from: process.env.EMAIL_USERNAME,
-        to: admin.email,
-        subject: "Resetar Senha",
-        text: `Clique no link a seguir ou cole-o em seu navegador para concluir o processo: ${resetLink}`,
-      };
-
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.error("Erro ao enviar email:", error);
-          return res.status(500).send(errorResponse("Error ao enviar email"));
-        } else {
+      request
+        .then((result) => {
+          console.log("Email enviado: " + result.body);
           res.send(successResponse("Email de recuperação de senha enviado com sucesso"));
-        }
-      });
+        })
+        .catch((err) => {
+          console.error("Erro ao enviar email:", err);
+          res.status(500).send(errorResponse("Erro ao enviar email"));
+        });
     } catch (error) {
+      console.error(error);
       res.status(500).send(errorResponse(error.message));
     }
   },
@@ -208,52 +215,42 @@ const adminController = {
         return res.status(400).send(errorResponse("Admin já existe"));
       }
 
-      const tempPassword = "TempPass123";
-      const salt = bcrypt.genSaltSync(10);
-      const passwordHash = bcrypt.hashSync(tempPassword, salt);
-
-      admin = new Admin({
-        email,
-        passwordHash,
-      });
-
-      await admin.save();
-
-      const emailToken = jwt.sign({ _id: admin._id }, process.env.JWT_SECRET, {
-        expiresIn: "1h",
-      });
-
+      const emailToken = jwt.sign({ email }, process.env.JWT_SECRET, { expiresIn: "1h" });
       const link = `${process.env.FRONTEND_URL}/admin/set-password?token=${emailToken}`;
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: process.env.EMAIL_USERNAME,
-          pass: process.env.EMAIL_PASSWORD,
-        },
+
+      const request = mailjet.post("send", { version: "v3.1" }).request({
+        Messages: [
+          {
+            From: {
+              Email: "teachassistsoftware@gmail.com",
+              Name: "Vestuario",
+            },
+            To: [
+              {
+                Email: email,
+                Name: "Admin",
+              },
+            ],
+            Subject: "Concluir registro de administrador",
+            HTMLPart: `<p>Você está recebendo isto porque você (ou outra pessoa) solicitou a adição de um novo administrador para sua conta.</p>
+                       <p>Clique no link a seguir ou cole-o em seu navegador para concluir o processo:</p>
+                       <a href="${link}">${link}</a>
+                       <p>Se você não solicitou isso, ignore este e-mail e sua senha permanecerá inalterada.</p>`,
+          },
+        ],
       });
 
-      const mailOptions = {
-        from: process.env.EMAIL_USERNAME,
-        to: email,
-        subject: "Concluir registro de administrador",
-        html: `<p>Você está recebendo isto porque você (ou outra pessoa) solicitou a adição de um novo administrador para sua conta.</p>
-               <p>Clique no link a seguir ou cole-o em seu navegador para concluir o processo:</p>
-               <a href="${link}">${link}</a>
-               <p>Se você não solicitou isso, ignore este e-mail e sua senha permanecerá inalterada.</p>`,
-      };
-
-      transporter.sendMail(mailOptions, function (error, info) {
-        if (error) {
-          console.error("Erro ao enviar email:", error);
-          return res.status(500).send(errorResponse("Erro ao enviar email"));
-        } else {
-          console.log("Email Enviado: " + info.response);
+      request
+        .then((result) => {
+          console.log("Email enviado: " + result.body);
           res.status(201).send(successResponse("Admin criado e email enviado"));
-        }
-      });
-
-      res.status(201).send(successResponse("Admin criado e email enviado"));
+        })
+        .catch((err) => {
+          console.error("Erro ao enviar email:", err);
+          res.status(500).send(errorResponse("Erro ao enviar email"));
+        });
     } catch (error) {
+      console.error(error);
       res.status(500).send(errorResponse(error.message));
     }
   },
