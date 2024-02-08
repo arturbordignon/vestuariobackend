@@ -22,6 +22,4 @@ router.post("/chats/:chatId/messages", authenticateUserToken, chatController.add
 
 router.post("/chats/startOrContinue", authenticateUserToken, chatController.startOrContinueChat);
 
-router.post("/chats/:chatId/assign-admin", authenticateToken, chatController.assignAdminToChat);
-
 module.exports = router;

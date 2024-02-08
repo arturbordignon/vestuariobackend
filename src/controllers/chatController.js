@@ -144,27 +144,6 @@ const chatController = {
     }
   },
 
-  assignAdminToChat: async (req, res) => {
-    try {
-      const { chatId } = req.params;
-      const adminId = req.user._id;
-
-      const chat = await Chat.findById(chatId);
-      if (!chat) return res.status(404).json({ success: false, message: "Chat não encontrado" });
-
-      if (chat.admin)
-        return res.status(400).json({ success: false, message: "Chat já tem um admin" });
-
-      chat.admin = adminId;
-      await chat.save();
-
-      res.status(200).json({ success: true, message: "Admin entrou no chat com sucesso" });
-    } catch (error) {
-      console.error("Erro ao entrar no chat:", error);
-      res.status(500).json({ success: false, message: "Erro interno", error: error.message });
-    }
-  },
-
   getMessages: async (req, res) => {
     try {
       const { chatId } = req.params;

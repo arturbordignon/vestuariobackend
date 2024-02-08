@@ -25,10 +25,6 @@ const upload = multer({ storage: storage });
 
 router.post("/admin/login", adminController.login);
 
-router.post("/admin/forgot-password", adminController.forgotPassword);
-
-router.post("/admin/reset-password", adminController.resetPassword);
-
 router.get("/admin/clothes", authenticateToken, adminController.getAllClothingForAdmin);
 
 router.post(
@@ -52,8 +48,6 @@ router.put("/admin/clothing/:clothingId/donated", authenticateToken, adminContro
 router.get("/admin/clothing/donated", authenticateToken, adminController.getDonatedClothing);
 
 router.post("/admin/add-admin", authenticateToken, adminController.addAdmin);
-
-router.post("/admin/reset-password", adminController.resetPassword);
 
 router.delete("/admin/delete/:adminId", authenticateToken, adminController.deleteAdmin);
 
