@@ -8,6 +8,9 @@ const { errorHandler } = require("./utils/middleware");
 const cloudinary = require("cloudinary").v2;
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 require("dotenv").config();
+const job = require("./cron").job;
+
+job.start();
 
 const cors = require("cors");
 
